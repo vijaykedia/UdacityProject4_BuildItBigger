@@ -1,0 +1,11 @@
+# Android studio generated files
+.idea
+build
+*.iml
+local.properties
+
+# Gradle generated files
+.gradle
+
+# Mac Files
+.DS_Store
