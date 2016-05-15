@@ -1,7 +1,9 @@
 package com.udacity.builditbigger.jokeprovider;
 
+import com.udacity.builditbigger.jokeprovider.api.JokeService;
 import com.udacity.builditbigger.jokeprovider.model.RandomJokeResult;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -11,7 +13,7 @@ import retrofit2.Retrofit;
 import retrofit2.converter.moshi.MoshiConverterFactory;
 
 /**
- * Class which will act as interface from client to get a joke
+ * Class which will act as interface for client to get a joke
  */
 public class JokeProvider {
 
@@ -21,6 +23,19 @@ public class JokeProvider {
 
     private final Call<RandomJokeResult> jokeCall;
 
+    private JokeProvider() {
+
+        final Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(MoshiConverterFactory.create())
+                .build();
+
+        final JokeService jokeService = retrofit.create(JokeService.class);
+
+        jokeCall = jokeService.getJoke();
+    }
+
+    @NotNull
     public static JokeProvider getInstance() {
         if (INSTANCE == null) {
             synchronized (JokeProvider.class) {
@@ -32,21 +47,11 @@ public class JokeProvider {
         return INSTANCE;
     }
 
-    private JokeProvider() {
-
-        final Retrofit retrofit = new Retrofit.Builder().baseUrl(BASE_URL)
-                .addConverterFactory(MoshiConverterFactory.create())
-                .build();
-
-        final com.udacity.builditbigger.jokeprovider.api.JokeService jokeService = retrofit.create(com.udacity.builditbigger.jokeprovider.api.JokeService.class);
-
-        jokeCall = jokeService.getJoke();
-    }
-
     @Nullable
     public String getJoke() {
+
         try {
-            return jokeCall.execute().body().getValue().getJoke();
+            return jokeCall.clone().execute().body().getValue().getJoke();
         } catch (final IOException e) {
             return null;
         }
