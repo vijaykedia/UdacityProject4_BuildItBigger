@@ -11,6 +11,7 @@ android {
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
+        multiDexEnabled true
     }
     buildTypes {
         release {
@@ -33,7 +34,13 @@ dependencies {
     // For RxAndroid
     compile 'io.reactivex:rxandroid:1.2.0'
 
+    // For RxJava binding APIs for android Views
+    compile 'com.jakewharton.rxbinding:rxbinding:0.4.0'
+
 
     // Adding joke provider java library
     compile project(':jokeprovider')
+
+    // Adding android message display library
+    compile project(':messagedisplayer')
 }
