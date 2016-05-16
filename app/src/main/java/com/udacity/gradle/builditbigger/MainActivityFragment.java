@@ -90,14 +90,17 @@ public class MainActivityFragment extends Fragment {
             jokeObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(jokeObserver);
         });
 
-        AdView mAdView = (AdView) root.findViewById(R.id.adView);
-        // Create an ad request. Check logcat output for the hashed device ID to
-        // get test ads on a physical device. e.g.
-        // "Use AdRequest.Builder.addTestDevice("ABCDEF012345") to get test ads on this device."
-        AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .build();
-        mAdView.loadAd(adRequest);
+        final boolean isPaid = getContext().getResources().getBoolean(R.bool.isPaid);
+
+        if (!isPaid) {
+            AdView mAdView = (AdView) root.findViewById(R.id.adView);
+            mAdView.setVisibility(View.VISIBLE);
+
+            AdRequest adRequest = new AdRequest.Builder()
+                    .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                    .build();
+            mAdView.loadAd(adRequest);
+        }
         return root;
     }
 }

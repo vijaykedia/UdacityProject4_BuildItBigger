@@ -1,0 +1,3 @@
+<resources>
+    <bool name="isPaid">true</bool>
+</resources>
