@@ -1,16 +1,11 @@
 package com.udacity.builditbigger.jokeprovider;
 
 import com.udacity.builditbigger.jokeprovider.api.JokeService;
-import com.udacity.builditbigger.jokeprovider.model.RandomJokeResult;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.IOException;
-
-import retrofit2.Call;
-import retrofit2.Retrofit;
-import retrofit2.converter.moshi.MoshiConverterFactory;
+import retrofit.RestAdapter;
 
 /**
  * Class which will act as interface for client to get a joke
@@ -21,18 +16,15 @@ public class JokeProvider {
 
     private static JokeProvider INSTANCE;
 
-    private final Call<RandomJokeResult> jokeCall;
+    private final JokeService jokeService;
 
     private JokeProvider() {
 
-        final Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(MoshiConverterFactory.create())
+        final RestAdapter retrofit = new RestAdapter.Builder()
+                .setEndpoint(BASE_URL)
                 .build();
 
-        final JokeService jokeService = retrofit.create(JokeService.class);
-
-        jokeCall = jokeService.getJoke();
+        jokeService = retrofit.create(JokeService.class);
     }
 
     @NotNull
@@ -49,11 +41,6 @@ public class JokeProvider {
 
     @Nullable
     public String getJoke() {
-
-        try {
-            return jokeCall.clone().execute().body().getValue().getJoke();
-        } catch (final IOException e) {
-            return null;
-        }
+        return jokeService.getJoke().getValue().getJoke();
     }
 }

@@ -9,3 +9,6 @@ local.properties
 
 # Mac Files
 .DS_Store
+
+# Test folder
+test

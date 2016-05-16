@@ -13,9 +13,13 @@ import android.widget.Button;
 
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.extensions.android.json.AndroidJsonFactory;
 import com.jakewharton.rxbinding.view.RxView;
-import com.udacity.builditbigger.jokeprovider.JokeProvider;
+import com.udacity.builditbigger.cloudjokeprovider.getJoke.GetJoke;
 import com.udacity.builditbigger.messagedisplayer.MessageDisplayActivity;
+
+import java.io.IOException;
 
 import rx.Observable;
 import rx.Observer;
@@ -29,7 +33,17 @@ import rx.schedulers.Schedulers;
 public class MainActivityFragment extends Fragment {
 
     private static final String LOG_TAG = MainActivityFragment.class.getSimpleName();
+
+    private static final String FAILURE_MESSAGE = "Failed to get Joke";
+
+    private final GetJoke service;
+
     public MainActivityFragment() {
+
+        GetJoke.Builder builder = new GetJoke.Builder(AndroidHttp.newCompatibleTransport(), new AndroidJsonFactory(), null)
+                .setRootUrl("https://udacityproject4-builditbigger.appspot.com/_ah/api/");
+
+        service = builder.build();
     }
 
     @Override
@@ -41,7 +55,18 @@ public class MainActivityFragment extends Fragment {
 
         final Observable<Void> buttonObservable = RxView.clicks(button);
 
-        final Observable<String> jokeObservable = Observable.defer(() -> Observable.just(JokeProvider.getInstance().getJoke()));
+        final Observable<String> jokeObservable = Observable.defer(() -> {
+            String result;
+            try {
+                result = service.provideJoke().execute().getValue();
+            } catch (final IOException e) {
+                Log.e(LOG_TAG, "Failed to get Joke from cloud engine", e);
+                result = FAILURE_MESSAGE;
+            }
+            return Observable.just(result);
+        });
+
+        final Intent intent = new Intent(getContext(), MessageDisplayActivity.class);
         final Observer<String> jokeObserver = new Observer<String>() {
             @Override
             public void onCompleted() {
@@ -50,15 +75,13 @@ public class MainActivityFragment extends Fragment {
             @Override
             public void onError(Throwable e) {
                 Log.e(LOG_TAG, "-------Failure ------", e);
-                final Intent intent = new Intent(getContext(), MessageDisplayActivity.class);
-                intent.putExtra("message", "Failed to get joke.");
+                intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, FAILURE_MESSAGE);
                 startActivity(intent);
             }
 
             @Override
             public void onNext(@NonNull final String joke) {
-                final Intent intent = new Intent(getContext(), MessageDisplayActivity.class);
-                intent.putExtra("message", joke);
+                intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, joke);
                 startActivity(intent);
             }
         };

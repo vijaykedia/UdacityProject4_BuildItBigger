@@ -2,8 +2,8 @@ package com.udacity.builditbigger.jokeprovider.api;
 
 import com.udacity.builditbigger.jokeprovider.model.RandomJokeResult;
 
-import retrofit2.Call;
-import retrofit2.http.GET;
+import retrofit.http.GET;
+
 
 /**
  * Created by vijaykedia on 15/05/16.
@@ -11,7 +11,7 @@ import retrofit2.http.GET;
  */
 public interface JokeService {
 
-    @GET("jokes/random")
-    Call<RandomJokeResult> getJoke();
+    @GET("/jokes/random")
+    RandomJokeResult getJoke();
 
 }

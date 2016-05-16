@@ -11,12 +11,14 @@ import android.widget.Toast;
  */
 public class MessageDisplayActivity extends AppCompatActivity {
 
+    public static final String MESSAGE_KEY = "message";
+
     @Override
     protected void onCreate(@Nullable final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         final Bundle bundle = getIntent().getExtras();
-        final String message = bundle.getString("message");
+        final String message = bundle.getString(MESSAGE_KEY);
 
         Toast.makeText(MessageDisplayActivity.this, message, Toast.LENGTH_SHORT).show();
 
