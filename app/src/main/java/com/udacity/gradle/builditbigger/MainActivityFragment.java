@@ -10,9 +10,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ProgressBar;
 
+import com.google.android.gms.ads.AdListener;
 import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.AdView;
+import com.google.android.gms.ads.InterstitialAd;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
 import com.jakewharton.rxbinding.view.RxView;
@@ -23,6 +26,7 @@ import java.io.IOException;
 
 import rx.Observable;
 import rx.Observer;
+import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
@@ -38,6 +42,20 @@ public class MainActivityFragment extends Fragment {
 
     private final GetJoke service;
 
+    private InterstitialAd interstitialAd = null;
+
+    // Views
+    private ProgressBar progressBar;
+
+    // Intent
+    private Intent intent;
+
+    // Data Holder
+    private String data;
+
+    // Observes Interstitial Ad closed event
+    private Observable<Void> adClosedObservable;
+
     public MainActivityFragment() {
 
         GetJoke.Builder builder = new GetJoke.Builder(AndroidHttp.newCompatibleTransport(), new AndroidJsonFactory(), null)
@@ -52,9 +70,12 @@ public class MainActivityFragment extends Fragment {
         final View root = inflater.inflate(R.layout.fragment_main, container, false);
 
         final Button button = (Button) root.findViewById(R.id.button_display_joke);
+        progressBar = (ProgressBar) root.findViewById(R.id.progressBar);
 
+        // Observes button clicks
         final Observable<Void> buttonObservable = RxView.clicks(button);
 
+        // Observes new jokes fetched from GCE
         final Observable<String> jokeObservable = Observable.defer(() -> {
             String result;
             try {
@@ -66,7 +87,9 @@ public class MainActivityFragment extends Fragment {
             return Observable.just(result);
         });
 
-        final Intent intent = new Intent(getContext(), MessageDisplayActivity.class);
+        intent = new Intent(getContext(), MessageDisplayActivity.class);
+
+        // Action defined when new joke is retrieved
         final Observer<String> jokeObserver = new Observer<String>() {
             @Override
             public void onCompleted() {
@@ -75,22 +98,47 @@ public class MainActivityFragment extends Fragment {
             @Override
             public void onError(Throwable e) {
                 Log.e(LOG_TAG, "-------Failure ------", e);
-                intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, FAILURE_MESSAGE);
-                startActivity(intent);
+                data = FAILURE_MESSAGE;
+                if (adClosedObservable == null) {
+                    processJoke();
+                }
             }
 
             @Override
             public void onNext(@NonNull final String joke) {
-                intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, joke);
-                startActivity(intent);
+                data = joke;
+                if (adClosedObservable == null) {
+                    processJoke();
+                }
             }
         };
 
+        final boolean isPaid = getContext().getResources().getBoolean(R.bool.isPaid);
+
+        if (!isPaid) {
+            interstitialAd = new InterstitialAd(getContext());
+            interstitialAd.setAdUnitId("ca-app-pub-3940256099942544/1033173712");
+
+            adClosedObservable = Observable.create(new AdClosedOnSubscribe(interstitialAd));
+
+            adClosedObservable.subscribe(aVoid -> {
+                requestNewInterstitial();
+                processJoke();
+            });
+
+            requestNewInterstitial();
+        }
+
         buttonObservable.subscribe(aVoid -> {
+
+            if (interstitialAd != null && interstitialAd.isLoaded()) {
+                interstitialAd.show();
+            } else {
+                progressBar.setVisibility(View.VISIBLE);
+            }
+
             jokeObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(jokeObserver);
         });
-
-        final boolean isPaid = getContext().getResources().getBoolean(R.bool.isPaid);
 
         if (!isPaid) {
             AdView mAdView = (AdView) root.findViewById(R.id.adView);
@@ -102,5 +150,44 @@ public class MainActivityFragment extends Fragment {
             mAdView.loadAd(adRequest);
         }
         return root;
+    }
+
+    private void requestNewInterstitial() {
+        AdRequest adRequest = new AdRequest.Builder()
+                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
+                .build();
+
+        interstitialAd.loadAd(adRequest);
+    }
+
+    private void processJoke() {
+        progressBar.setVisibility(View.GONE);
+        intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, data);
+        startActivity(intent);
+    }
+
+
+    private class AdClosedOnSubscribe implements Observable.OnSubscribe<Void> {
+
+        final InterstitialAd ad;
+
+        public AdClosedOnSubscribe(@NonNull final InterstitialAd ad) {
+            this.ad = ad;
+        }
+
+        @Override
+        public void call(final Subscriber<? super Void> subscriber) {
+
+            final AdListener listener = new AdListener() {
+                @Override
+                public void onAdClosed() {
+                    if (!subscriber.isUnsubscribed()) {
+                        subscriber.onNext(null);
+                    }
+                }
+            };
+
+            ad.setAdListener(listener);
+        }
     }
 }
