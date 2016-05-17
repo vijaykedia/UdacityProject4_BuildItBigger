@@ -12,10 +12,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ProgressBar;
 
-import com.google.android.gms.ads.AdListener;
-import com.google.android.gms.ads.AdRequest;
-import com.google.android.gms.ads.AdView;
-import com.google.android.gms.ads.InterstitialAd;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.extensions.android.json.AndroidJsonFactory;
 import com.jakewharton.rxbinding.view.RxView;
@@ -26,10 +22,8 @@ import java.io.IOException;
 
 import rx.Observable;
 import rx.Observer;
-import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
-
 
 /**
  * A placeholder fragment containing a simple view.
@@ -42,19 +36,11 @@ public class MainActivityFragment extends Fragment {
 
     private final GetJoke service;
 
-    private InterstitialAd interstitialAd = null;
-
     // Views
     private ProgressBar progressBar;
 
     // Intent
     private Intent intent;
-
-    // Data Holder
-    private String data;
-
-    // Observes Interstitial Ad closed event
-    private Observable<Void> adClosedObservable;
 
     public MainActivityFragment() {
 
@@ -98,96 +84,26 @@ public class MainActivityFragment extends Fragment {
             @Override
             public void onError(Throwable e) {
                 Log.e(LOG_TAG, "-------Failure ------", e);
-                data = FAILURE_MESSAGE;
-                if (adClosedObservable == null) {
-                    processJoke();
-                }
+                processJoke(FAILURE_MESSAGE);
             }
 
             @Override
             public void onNext(@NonNull final String joke) {
-                data = joke;
-                if (adClosedObservable == null) {
-                    processJoke();
-                }
+                processJoke(joke);
             }
         };
 
-        final boolean isPaid = getContext().getResources().getBoolean(R.bool.isPaid);
-
-        if (!isPaid) {
-            interstitialAd = new InterstitialAd(getContext());
-            interstitialAd.setAdUnitId("ca-app-pub-3940256099942544/1033173712");
-
-            adClosedObservable = Observable.create(new AdClosedOnSubscribe(interstitialAd));
-
-            adClosedObservable.subscribe(aVoid -> {
-                requestNewInterstitial();
-                processJoke();
-            });
-
-            requestNewInterstitial();
-        }
-
         buttonObservable.subscribe(aVoid -> {
-
-            if (interstitialAd != null && interstitialAd.isLoaded()) {
-                interstitialAd.show();
-            } else {
-                progressBar.setVisibility(View.VISIBLE);
-            }
-
+            progressBar.setVisibility(View.VISIBLE);
             jokeObservable.subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread()).subscribe(jokeObserver);
         });
 
-        if (!isPaid) {
-            AdView mAdView = (AdView) root.findViewById(R.id.adView);
-            mAdView.setVisibility(View.VISIBLE);
-
-            AdRequest adRequest = new AdRequest.Builder()
-                    .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                    .build();
-            mAdView.loadAd(adRequest);
-        }
         return root;
     }
 
-    private void requestNewInterstitial() {
-        AdRequest adRequest = new AdRequest.Builder()
-                .addTestDevice(AdRequest.DEVICE_ID_EMULATOR)
-                .build();
-
-        interstitialAd.loadAd(adRequest);
-    }
-
-    private void processJoke() {
+    private void processJoke(@NonNull final String data) {
         progressBar.setVisibility(View.GONE);
         intent.putExtra(MessageDisplayActivity.MESSAGE_KEY, data);
         startActivity(intent);
-    }
-
-
-    private class AdClosedOnSubscribe implements Observable.OnSubscribe<Void> {
-
-        final InterstitialAd ad;
-
-        public AdClosedOnSubscribe(@NonNull final InterstitialAd ad) {
-            this.ad = ad;
-        }
-
-        @Override
-        public void call(final Subscriber<? super Void> subscriber) {
-
-            final AdListener listener = new AdListener() {
-                @Override
-                public void onAdClosed() {
-                    if (!subscriber.isUnsubscribed()) {
-                        subscriber.onNext(null);
-                    }
-                }
-            };
-
-            ad.setAdListener(listener);
-        }
     }
 }
